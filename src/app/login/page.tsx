@@ -3,59 +3,224 @@ import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 
+const T = {
+  bg:     '#0A0F1E',
+  navy2:  '#0F1629',
+  navy3:  '#141B33',
+  border: '#1E2A47',
+  indigo: '#6C63FF',
+  indigoL:'#8B85FF',
+  slate:  '#94A3B8',
+  white:  '#F8FAFC',
+  amber:  '#E8A838',
+  emerald:'#10B981',
+}
+
+const USERS = [
+  { name: 'Rishona', email: 'rishona.singla@aijengineers.in', emoji: '🎓', color: T.indigo,  role: 'student' },
+  { name: 'Tushar',  email: 'tusharchd29@gmail.com',           emoji: '👨‍💻', color: T.amber,   role: 'parent'  },
+]
+
 export default function LoginPage() {
-  const [email, setEmail]       = useState('')
-  const [password, setPassword] = useState('')
-  const [loading, setLoading]   = useState(false)
+  const [selected, setSelected] = useState<number | null>(null)
+  const [pin, setPin]           = useState('')
   const [error, setError]       = useState<string | null>(null)
+  const [loading, setLoading]   = useState(false)
   const router = useRouter()
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoading(true); setError(null)
-    const sb = createClient()
-    const { data, error } = await sb.auth.signInWithPassword({ email, password })
-    if (error) { setError(error.message); setLoading(false); return }
-    const { data: profile } = await sb.from('profiles').select('role').eq('id', data.user.id).single()
-    router.push(profile?.role === 'parent' ? '/parent' : '/student')
-    router.refresh()
+  const user = selected !== null ? USERS[selected] : null
+
+  const handleDigit = async (digit: string) => {
+    if (loading) return
+    const next = pin + digit
+    setPin(next)
+    setError(null)
+
+    if (next.length === 4) {
+      setLoading(true)
+      const sb = createClient()
+      // PIN is used as the password directly
+      const { error: authError } = await sb.auth.signInWithPassword({
+        email: user!.email,
+        password: next,
+      })
+      if (authError) {
+        setError('Wrong PIN — try again')
+        setPin('')
+        setLoading(false)
+        return
+      }
+      router.push(user!.role === 'parent' ? '/parent' : '/student')
+      router.refresh()
+    }
   }
 
-  const s: Record<string, React.CSSProperties> = {
-    page:  { minHeight:'100vh', background:'#0A0F1E', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'Inter,sans-serif' },
-    card:  { width:400, background:'#0F1629', border:'1px solid #1E2A47', borderRadius:16, padding:40 },
-    label: { display:'block', fontSize:12, color:'#94A3B8', marginBottom:6 },
-    input: { width:'100%', padding:'10px 14px', background:'#141B33', border:'1px solid #1E2A47', borderRadius:8, color:'#F8FAFC', fontSize:14, outline:'none', boxSizing:'border-box' as const },
-    btn:   { width:'100%', padding:12, background:'#6C63FF', border:'none', borderRadius:8, color:'#fff', fontSize:14, fontWeight:600, cursor:'pointer' },
-    err:   { padding:'10px 14px', background:'#EF444415', border:'1px solid #EF444430', borderRadius:8, fontSize:13, color:'#EF4444', marginBottom:16 },
+  const handleDelete = () => {
+    setPin(p => p.slice(0, -1))
+    setError(null)
   }
+
+  const handleBack = () => {
+    setSelected(null)
+    setPin('')
+    setError(null)
+  }
+
+  // ── Step 1: Pick a name ──────────────────────────────────────────────────
+  if (selected === null) {
+    return (
+      <div style={styles.page}>
+        <div style={styles.card}>
+          <div style={{ marginBottom: 28, textAlign: 'center' }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: T.indigo, letterSpacing: '0.08em', fontFamily: '"Space Grotesk",sans-serif', marginBottom: 8 }}>
+              AI ENGINEER&apos;S JOURNEY
+            </div>
+            <div style={{ fontSize: 22, fontWeight: 700, color: T.white, fontFamily: '"Space Grotesk",sans-serif' }}>
+              Who&apos;s learning today?
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: 14 }}>
+            {USERS.map((u, i) => (
+              <button
+                key={u.name}
+                onClick={() => setSelected(i)}
+                style={{
+                  flex: 1,
+                  padding: '28px 16px',
+                  background: `${u.color}12`,
+                  border: `1.5px solid ${u.color}40`,
+                  borderRadius: 16,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: 10,
+                  transition: 'all 0.15s',
+                }}
+                onMouseEnter={e => {
+                  (e.currentTarget as HTMLButtonElement).style.background = `${u.color}22`
+                  ;(e.currentTarget as HTMLButtonElement).style.borderColor = `${u.color}80`
+                }}
+                onMouseLeave={e => {
+                  (e.currentTarget as HTMLButtonElement).style.background = `${u.color}12`
+                  ;(e.currentTarget as HTMLButtonElement).style.borderColor = `${u.color}40`
+                }}
+              >
+                <div style={{ fontSize: 40, lineHeight: 1 }}>{u.emoji}</div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: T.white, fontFamily: '"Space Grotesk",sans-serif' }}>{u.name}</div>
+                <div style={{ fontSize: 10, color: T.slate, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                  {u.role === 'student' ? 'Student' : 'Mentor'}
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // ── Step 2: Enter PIN ────────────────────────────────────────────────────
+  const dots = Array.from({ length: 4 }, (_, i) => i < pin.length)
 
   return (
-    <div style={s.page}>
-      <div style={s.card}>
-        <div style={{ marginBottom:28 }}>
-          <div style={{ fontSize:13, fontWeight:700, color:'#6C63FF', letterSpacing:'0.05em', fontFamily:'"Space Grotesk",sans-serif' }}>AI ENGINEER&apos;S JOURNEY</div>
-          <div style={{ fontSize:24, fontWeight:700, color:'#F8FAFC', marginTop:6 }}>Sign in</div>
-          <div style={{ fontSize:13, color:'#94A3B8', marginTop:4 }}>Rishona or Tushar — same page, different dashboard</div>
+    <div style={styles.page}>
+      <div style={{ ...styles.card, width: 320 }}>
+        {/* Header */}
+        <div style={{ textAlign: 'center', marginBottom: 28 }}>
+          <div style={{ fontSize: 36, marginBottom: 8 }}>{user!.emoji}</div>
+          <div style={{ fontSize: 18, fontWeight: 700, color: T.white, fontFamily: '"Space Grotesk",sans-serif' }}>
+            Hi, {user!.name}
+          </div>
+          <div style={{ fontSize: 12, color: T.slate, marginTop: 4 }}>Enter your 4-digit PIN</div>
         </div>
-        <form onSubmit={handleLogin}>
-          <div style={{ marginBottom:16 }}>
-            <label style={s.label}>Email</label>
-            <input style={s.input} type="email" value={email} onChange={e => setEmail(e.target.value)} required placeholder="you@example.com" />
+
+        {/* PIN dots */}
+        <div style={{ display: 'flex', justifyContent: 'center', gap: 14, marginBottom: 28 }}>
+          {dots.map((filled, i) => (
+            <div
+              key={i}
+              style={{
+                width: 16,
+                height: 16,
+                borderRadius: '50%',
+                background: filled ? user!.color : 'transparent',
+                border: `2px solid ${filled ? user!.color : T.border}`,
+                transition: 'all 0.15s',
+              }}
+            />
+          ))}
+        </div>
+
+        {/* Error */}
+        {error && (
+          <div style={{ marginBottom: 16, padding: '10px 14px', background: '#EF444415', border: '1px solid #EF444430', borderRadius: 8, fontSize: 13, color: '#EF4444', textAlign: 'center' }}>
+            {error}
           </div>
-          <div style={{ marginBottom:24 }}>
-            <label style={s.label}>Password</label>
-            <input style={s.input} type="password" value={password} onChange={e => setPassword(e.target.value)} required placeholder="••••••••" />
-          </div>
-          {error && <div style={s.err}>{error}</div>}
-          <button style={{ ...s.btn, opacity: loading ? 0.7 : 1, cursor: loading ? 'not-allowed' : 'pointer' }} type="submit" disabled={loading}>
-            {loading ? 'Signing in…' : 'Sign in →'}
+        )}
+
+        {/* Numpad */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 16 }}>
+          {['1','2','3','4','5','6','7','8','9'].map(d => (
+            <button
+              key={d}
+              onClick={() => handleDigit(d)}
+              disabled={loading}
+              style={numBtn(user!.color, loading)}
+            >
+              {d}
+            </button>
+          ))}
+          {/* Bottom row: back arrow, 0, delete */}
+          <button onClick={handleBack} disabled={loading} style={{ ...numBtn(T.slate, loading), fontSize: 16, color: T.slate }}>
+            ←
           </button>
-        </form>
-        <div style={{ marginTop:20, padding:14, background:'#141B33', borderRadius:8, fontSize:12, color:'#94A3B8' }}>
-          🎓 Students land on their dashboard · 👨‍👩‍👧 Parents land on the oversight panel
+          <button onClick={() => handleDigit('0')} disabled={loading} style={numBtn(user!.color, loading)}>
+            0
+          </button>
+          <button onClick={handleDelete} disabled={pin.length === 0 || loading} style={{ ...numBtn(T.slate, loading), fontSize: 16, color: T.slate }}>
+            ⌫
+          </button>
         </div>
+
+        {loading && (
+          <div style={{ textAlign: 'center', fontSize: 12, color: T.slate }}>Signing in…</div>
+        )}
       </div>
     </div>
   )
+}
+
+function numBtn(color: string, disabled: boolean): React.CSSProperties {
+  return {
+    padding: '16px 0',
+    background: T.navy3,
+    border: `1px solid ${T.border}`,
+    borderRadius: 10,
+    color: T.white,
+    fontSize: 20,
+    fontWeight: 600,
+    fontFamily: '"Space Grotesk",sans-serif',
+    cursor: disabled ? 'not-allowed' : 'pointer',
+    opacity: disabled ? 0.5 : 1,
+    transition: 'all 0.1s',
+  }
+}
+
+const styles: Record<string, React.CSSProperties> = {
+  page: {
+    minHeight: '100vh',
+    background: T.bg,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontFamily: 'Inter,sans-serif',
+  },
+  card: {
+    width: 380,
+    background: T.navy2,
+    border: `1px solid ${T.border}`,
+    borderRadius: 20,
+    padding: 36,
+  },
 }

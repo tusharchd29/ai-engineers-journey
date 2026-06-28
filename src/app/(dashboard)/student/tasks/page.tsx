@@ -39,7 +39,7 @@ export default function TasksPage() {
       setDone(prev => { const n = new Set(prev); n.delete(taskId); return n })
     } else {
       await sb.from('task_completions').upsert({ task_id: taskId, student_id: userId, parent_approved: false }, { onConflict: 'task_id,student_id' })
-      setDone(prev => new Set([...prev, taskId]))
+      setDone(prev => { const n = new Set(prev); n.add(taskId); return n })
     }
   }
 

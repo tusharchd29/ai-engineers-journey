@@ -3,7 +3,6 @@ import { cookies } from 'next/headers'
 
 export const createClient = () => {
   const cookieStore = cookies()
-
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -18,7 +17,7 @@ export const createClient = () => {
               cookieStore.set(name, value, options)
             )
           } catch {
-            // Server component — cookie writes silently ignored, reads still work
+            // Server component — writes ignored, reads work fine
           }
         },
       },

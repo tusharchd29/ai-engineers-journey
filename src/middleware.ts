@@ -1,8 +1,8 @@
-import { createServerClient, type CookieOptions } from '@supabase/ssr'
+import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function middleware(request: NextRequest) {
-  let response = NextResponse.next({ request })
+  let supabaseResponse = NextResponse.next({ request })
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -12,27 +12,33 @@ export async function middleware(request: NextRequest) {
         getAll() {
           return request.cookies.getAll()
         },
-        setAll(cookiesToSet: { name: string; value: string; options: CookieOptions }[]) {
-          cookiesToSet.forEach(({ name, value }: { name: string; value: string }) =>
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value }) =>
             request.cookies.set(name, value)
           )
-          response = NextResponse.next({ request })
-          cookiesToSet.forEach(({ name, value, options }: { name: string; value: string; options: CookieOptions }) =>
-            response.cookies.set(name, value, options)
+          supabaseResponse = NextResponse.next({ request })
+          cookiesToSet.forEach(({ name, value, options }) =>
+            supabaseResponse.cookies.set(name, value, options)
           )
         },
       },
     }
   )
 
+  // IMPORTANT: always call getUser() — this refreshes the session
   const { data: { user } } = await supabase.auth.getUser()
+
   const path = request.nextUrl.pathname
 
   if (!user && (path.startsWith('/student') || path.startsWith('/parent'))) {
-    return NextResponse.redirect(new URL('/login', request.url))
+    const url = request.nextUrl.clone()
+    url.pathname = '/login'
+    return NextResponse.redirect(url)
   }
 
-  return response
+  // IMPORTANT: return supabaseResponse (not NextResponse.next())
+  // so refreshed session cookies are forwarded to the browser
+  return supabaseResponse
 }
 
 export const config = {

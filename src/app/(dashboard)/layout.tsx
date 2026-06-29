@@ -14,8 +14,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
       {/* Top bar */}
       <div style={{
         position:'sticky', top:0, zIndex:50,
-        background:'#0F1629',
-        borderBottom:'1px solid #1E2A47',
+        background:'#0F1629', borderBottom:'1px solid #1E2A47',
         padding:'12px 16px',
         display:'flex', alignItems:'center', justifyContent:'space-between',
       }}>
@@ -24,7 +23,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
             AI ENGINEER&apos;S JOURNEY
           </div>
           <div style={{ fontSize:11, color:'#94A3B8', marginTop:1 }}>
-            {profile?.name?.split(' ')[0] ?? '…'} · {profile?.role === 'parent' ? 'Mentor' : 'Class 9'}
+            {profile?.name?.split(' ')[0] ?? 'Rishona'} · {profile?.role === 'parent' ? 'Mentor' : 'Class 9'}
           </div>
         </div>
         <div style={{ fontSize:22 }}>
@@ -32,12 +31,10 @@ export default async function DashboardLayout({ children }: { children: React.Re
         </div>
       </div>
 
-      {/* Page content */}
       <main style={{ flex:1, overflowY:'auto', paddingBottom:72 }}>
         {children}
       </main>
 
-      {/* Bottom nav */}
       <BottomNav role={profile?.role ?? 'student'} />
     </div>
   )

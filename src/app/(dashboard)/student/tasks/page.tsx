@@ -1,42 +1,57 @@
-import { createClient } from '@/lib/supabase/server'
-import { redirect } from 'next/navigation'
+'use client'
+import { useEffect, useState } from 'react'
+import { createClient } from '@/lib/supabase/client'
 import TasksClient from './TasksClient'
 
-export default async function TasksPage() {
-  const sb = createClient()
-  const { data: { user } } = await sb.auth.getUser()
-  if (!user) redirect('/login')
+export default function TasksPage() {
+  const [ready, setReady]         = useState(false)
+  const [userId, setUserId]       = useState('')
+  const [activePhase, setPhase]   = useState<any>(null)
+  const [allPhases, setAllPhases] = useState<any[]>([])
+  const [tasks, setTasks]         = useState<any[]>([])
+  const [completions, setComps]   = useState<any[]>([])
 
-  // Fetch active phase
-  const { data: phases } = await sb.from('phases')
-    .select('*')
-    .eq('is_active', true)
-    .order('year').order('month')
-    .limit(1)
+  useEffect(() => {
+    const sb = createClient()
+    const load = async () => {
+      const { data: { user } } = await sb.auth.getUser()
+      if (!user) { window.location.href = '/login'; return }
+      setUserId(user.id)
 
-  const phase = phases?.[0] ?? null
+      const [{ data: phases }, { data: comps }, { data: all }] = await Promise.all([
+        sb.from('phases').select('*').eq('is_active', true).order('year').order('month').limit(1),
+        sb.from('task_completions').select('*').eq('student_id', user.id),
+        sb.from('phases').select('id, phase_name, label, year, month, color, badge, is_active, phase_number').order('year').order('month'),
+      ])
 
-  // Fetch tasks for active phase
-  const { data: tasks } = phase
-    ? await sb.from('tasks').select('*').eq('phase_id', phase.id).order('task_order')
-    : { data: [] }
+      const phase = phases?.[0] ?? null
+      setPhase(phase)
+      setAllPhases(all ?? [])
+      setComps(comps ?? [])
 
-  // Fetch ALL phases for the phase switcher
-  const { data: allPhases } = await sb.from('phases')
-    .select('id, phase_name, label, year, month, color, badge, is_active, phase_number')
-    .order('year').order('month')
+      if (phase) {
+        const { data: t } = await sb.from('tasks').select('*').eq('phase_id', phase.id).order('task_order')
+        setTasks(t ?? [])
+      }
+      setReady(true)
+    }
+    load()
+  }, [])
 
-  // Fetch completions for this student
-  const { data: completions } = await sb.from('task_completions')
-    .select('*').eq('student_id', user.id)
+  if (!ready) return (
+    <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', minHeight:'60vh', color:'#94A3B8', fontFamily:'Inter,sans-serif' }}>
+      <div style={{ fontSize:32, marginBottom:12 }}>⏳</div>
+      <div style={{ fontSize:14 }}>Loading tasks…</div>
+    </div>
+  )
 
   return (
     <TasksClient
-      userId={user.id}
-      activePhase={phase}
-      allPhases={allPhases ?? []}
-      initialTasks={tasks ?? []}
-      initialCompletions={completions ?? []}
+      userId={userId}
+      activePhase={activePhase}
+      allPhases={allPhases}
+      initialTasks={tasks}
+      initialCompletions={completions}
     />
   )
 }

@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 
-const T = { navy2:'#0F1629', border:'#1E2A47', indigo:'#6C63FF', slate:'#94A3B8', white:'#F8FAFC', amber:'#E8A838' }
+const T = { surface:'#FFFFFF', border:'#E8E0F0', purple:'#7C6FE0', muted:'#8B82B8', text:'#2D2352', peach:'#F59E6C' }
 
 const studentNav = [
   { href:'/student',            label:'Home',       icon:'⚡' },
@@ -25,7 +25,7 @@ export default function BottomNav({ role }: { role: string }) {
   const router   = useRouter()
   const isParent = role === 'parent'
   const nav      = isParent ? parentNav : studentNav
-  const accent   = isParent ? T.amber : T.indigo
+  const accent   = isParent ? T.peach : T.purple
 
   const handleSignOut = async () => {
     await createClient().auth.signOut()
@@ -35,9 +35,10 @@ export default function BottomNav({ role }: { role: string }) {
   return (
     <div style={{
       position:'fixed', bottom:0, left:0, right:0, zIndex:50,
-      background:T.navy2, borderTop:`1px solid ${T.border}`,
+      background:T.surface, borderTop:`1px solid ${T.border}`,
       display:'flex',
       paddingBottom:'env(safe-area-inset-bottom, 0px)',
+      boxShadow:'0 -1px 12px rgba(124,111,224,0.08)',
     }}>
       {nav.map(item => {
         const active = pathname.startsWith(item.href) && (item.href !== '/student' || pathname === '/student') && (item.href !== '/parent' || pathname === '/parent')
@@ -45,16 +46,16 @@ export default function BottomNav({ role }: { role: string }) {
           <Link key={item.href} href={item.href} style={{
             flex:1, display:'flex', flexDirection:'column', alignItems:'center',
             padding:'10px 4px 8px', textDecoration:'none',
-            color: active ? accent : T.slate, position:'relative',
+            color: active ? accent : T.muted, position:'relative',
           }}>
-            {active && <div style={{ position:'absolute', top:0, left:'50%', transform:'translateX(-50%)', width:24, height:2, background:accent, borderRadius:1 }} />}
+            {active && <div style={{ position:'absolute', top:0, left:'50%', transform:'translateX(-50%)', width:24, height:3, background:accent, borderRadius:'0 0 3px 3px' }} />}
             <span style={{ fontSize:item.icon==='⋯'?22:18, lineHeight:1, marginBottom:3 }}>{item.icon}</span>
             <span style={{ fontSize:9, fontWeight: active ? 700 : 400 }}>{item.label}</span>
           </Link>
         )
       })}
       {isParent && (
-        <button onClick={handleSignOut} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', padding:'10px 4px 8px', background:'transparent', border:'none', color:T.slate, cursor:'pointer' }}>
+        <button onClick={handleSignOut} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', padding:'10px 4px 8px', background:'transparent', border:'none', color:T.muted, cursor:'pointer' }}>
           <span style={{ fontSize:18, lineHeight:1, marginBottom:3 }}>🚪</span>
           <span style={{ fontSize:9 }}>Out</span>
         </button>

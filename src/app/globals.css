@@ -3,22 +3,24 @@
 @tailwind utilities;
 
 :root {
-  --navy:    #0A0F1E;
-  --navy2:   #0F1629;
-  --navy3:   #141B33;
-  --border:  #1E2A47;
-  --indigo:  #6C63FF;
-  --indigoL: #8B85FF;
-  --amber:   #E8A838;
-  --emerald: #10B981;
-  --teal:    #0F7173;
-  --slate:   #94A3B8;
-  --white:   #F8FAFC;
+  --bg:      #FFF8F0;
+  --surface: #FFFFFF;
+  --surface2:#F5F0FF;
+  --border:  #E8E0F0;
+  --purple:  #7C6FE0;
+  --purpleL: #A99EF0;
+  --peach:   #F59E6C;
+  --mint:    #5EC990;
+  --sky:     #64BFDF;
+  --text:    #2D2352;
+  --muted:   #8B82B8;
+  --white:   #FFFFFF;
+  --red:     #F27171;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
-body { background: var(--navy); color: var(--white); font-family: 'Inter', sans-serif; }
+body { background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; }
 
 ::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-track { background: var(--navy2); }
+::-webkit-scrollbar-track { background: var(--surface2); }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }

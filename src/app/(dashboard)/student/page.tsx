@@ -6,43 +6,47 @@ const T = { navy2:'#0F1629', navy3:'#141B33', border:'#1E2A47', indigo:'#6C63FF'
 
 export default async function StudentDashboard() {
   const sb = createClient()
+
+  // Auth first — always sequential
   const { data: { user } } = await sb.auth.getUser()
   if (!user) redirect('/login')
 
-  const [{ data: profile }, { data: completions }, { data: energyLogs }, { data: burnoutFlags }] = await Promise.all([
+  // Then fetch data — parallel is fine after auth is confirmed
+  const [
+    { data: profile },
+    { data: activePhases },
+    { data: completions },
+    { data: energyLogs },
+    { data: burnoutFlags },
+    { data: allPhases },
+  ] = await Promise.all([
     sb.from('profiles').select('*').eq('id', user.id).single(),
+    sb.from('phases').select('*').eq('is_active', true).order('year').order('month').limit(1),
     sb.from('task_completions').select('task_id, parent_approved').eq('student_id', user.id),
     sb.from('energy_logs').select('*').eq('student_id', user.id).order('log_date', { ascending: false }).limit(7),
     sb.from('burnout_flags').select('*').eq('student_id', user.id).eq('is_active', true),
+    sb.from('phases').select('id, year, is_active').order('year').order('month'),
   ])
 
-  // Active phase — use is_active flag
-  const { data: activePhases } = await sb.from('phases')
-    .select('*').eq('is_active', true).order('year').order('month').limit(1)
   const activePhase = activePhases?.[0] ?? null
 
-  // Tasks for active phase
+  // Tasks only after we know the active phase id
   const { data: tasks } = activePhase
     ? await sb.from('tasks').select('*').eq('phase_id', activePhase.id).order('task_order')
     : { data: [] }
 
-  // All phases for the 4-year overview
-  const { data: allPhases } = await sb.from('phases').select('id, year, is_active').order('year').order('month')
-
-  const completedSet = new Set((completions ?? []).map(c => c.task_id))
-  const totalTasks   = tasks?.length ?? 0
-  const doneTasks    = (tasks ?? []).filter(t => completedSet.has(t.id)).length
-  const pct          = totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : 0
-  const avgEnergy    = energyLogs?.length
+  const completedSet  = new Set((completions ?? []).map(c => c.task_id))
+  const totalTasks    = tasks?.length ?? 0
+  const doneTasks     = (tasks ?? []).filter(t => completedSet.has(t.id)).length
+  const pct           = totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : 0
+  const allCompletions = completions?.length ?? 0
+  const avgEnergy     = energyLogs?.length
     ? (energyLogs.reduce((s, l) => s + l.score, 0) / energyLogs.length).toFixed(1)
     : '—'
 
-  // Global stats
-  const allCompletions = completions?.length ?? 0
-
-  const firstName = profile?.name?.split(' ')[0] ?? '…'
-  const hour      = new Date().getHours()
-  const greeting  = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
+  const firstName  = profile?.name?.split(' ')[0] ?? 'Rishona'
+  const hour       = new Date().getHours()
+  const greeting   = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
   const phaseColor = activePhase?.color ?? T.indigo
 
   return (
@@ -69,10 +73,10 @@ export default async function StudentDashboard() {
       {/* Stats grid */}
       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:16 }}>
         {[
-          { label:'Phase Tasks', value:`${doneTasks}/${totalTasks}`, sub:'current phase', color:T.emerald },
-          { label:'Phase Progress', value:`${pct}%`, sub:'tasks completed', color:T.indigo },
-          { label:'Energy Avg', value:avgEnergy, sub:'this week', color:T.amber },
-          { label:'Total Done', value:`${allCompletions}`, sub:'all phases', color:T.indigoL },
+          { label:'Phase Tasks',    value:`${doneTasks}/${totalTasks}`, sub:'current phase',  color:T.emerald },
+          { label:'Phase Progress', value:`${pct}%`,                   sub:'tasks completed', color:T.indigo  },
+          { label:'Energy Avg',     value:avgEnergy,                   sub:'this week',       color:T.amber   },
+          { label:'Total Done',     value:`${allCompletions}`,         sub:'all phases',      color:T.indigoL },
         ].map(s => (
           <div key={s.label} style={{ background:T.navy2, border:`1px solid ${T.border}`, borderRadius:12, padding:'14px 16px' }}>
             <div style={{ fontSize:10, color:T.slate, textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:6 }}>{s.label}</div>
@@ -94,11 +98,12 @@ export default async function StudentDashboard() {
           {activePhase?.label ?? 'Dev Setup & AI Onboarding'}
         </div>
         {activePhase?.focus && <div style={{ fontSize:12, color:T.slate, marginBottom:10, lineHeight:1.5 }}>{activePhase.focus}</div>}
-        {activePhase?.course_title && (
+        {activePhase?.course_title && activePhase?.course_url && (
           <div style={{ marginBottom:10 }}>
-            <a href={activePhase.course_url ?? '#'} target="_blank" rel="noreferrer"
-              style={{ display:'inline-flex', alignItems:'center', gap:6, fontSize:12, color:phaseColor, textDecoration:'none',
-                padding:'4px 12px', borderRadius:20, background:`${phaseColor}15`, border:`1px solid ${phaseColor}30` }}>
+            <a href={activePhase.course_url} target="_blank" rel="noreferrer"
+              style={{ display:'inline-flex', alignItems:'center', gap:6, fontSize:12, color:phaseColor,
+                textDecoration:'none', padding:'5px 12px', borderRadius:20,
+                background:`${phaseColor}15`, border:`1px solid ${phaseColor}30` }}>
               📚 {activePhase.course_title} →
             </a>
           </div>
@@ -122,17 +127,22 @@ export default async function StudentDashboard() {
           <Link href="/student/tasks" style={{ fontSize:12, color:T.indigo, textDecoration:'none' }}>See all →</Link>
         </div>
         {(tasks ?? []).length === 0 ? (
-          <div style={{ fontSize:12, color:T.slate }}>No tasks loaded yet. Go to Tasks tab.</div>
+          <div style={{ fontSize:12, color:T.slate }}>
+            Tap <strong style={{ color:T.white }}>Tasks</strong> or <strong style={{ color:T.white }}>Curriculum</strong> in the nav below to get started.
+          </div>
         ) : (tasks ?? []).slice(0, 5).map(task => {
           const done = completedSet.has(task.id)
           return (
             <div key={task.id} style={{ display:'flex', alignItems:'flex-start', gap:10, marginBottom:10 }}>
-              <div style={{ width:20, height:20, borderRadius:6, flexShrink:0, marginTop:2, background: done ? T.emerald : 'transparent',
-                border:`2px solid ${done ? T.emerald : T.border}`, display:'flex', alignItems:'center', justifyContent:'center' }}>
+              <div style={{ width:20, height:20, borderRadius:6, flexShrink:0, marginTop:2,
+                background: done ? T.emerald : 'transparent',
+                border:`2px solid ${done ? T.emerald : T.border}`,
+                display:'flex', alignItems:'center', justifyContent:'center' }}>
                 {done && <span style={{ fontSize:11, color:'#fff' }}>✓</span>}
               </div>
               <div style={{ flex:1 }}>
-                <span style={{ fontSize:13, color: done ? T.slate : T.white, textDecoration: done ? 'line-through' : 'none', lineHeight:1.4 }}>
+                <span style={{ fontSize:13, color: done ? T.slate : T.white,
+                  textDecoration: done ? 'line-through' : 'none', lineHeight:1.4 }}>
                   {task.title}
                 </span>
                 {task.resource_url && !done && (
@@ -185,7 +195,8 @@ export default async function StudentDashboard() {
           <div style={{ display:'flex', alignItems:'flex-end', gap:5, height:56 }}>
             {[...(energyLogs ?? [])].reverse().slice(0, 7).map((log, i) => (
               <div key={i} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', gap:3 }}>
-                <div style={{ width:'100%', borderRadius:3, height:`${(log.score/10)*48}px`, background: log.score>=7?T.emerald:log.score>=5?T.amber:'#EF4444' }} />
+                <div style={{ width:'100%', borderRadius:3, height:`${(log.score/10)*48}px`,
+                  background: log.score>=7?T.emerald:log.score>=5?T.amber:'#EF4444' }} />
                 <span style={{ fontSize:9, color:T.slate }}>{new Date(log.log_date).toLocaleDateString('en',{weekday:'short'})}</span>
               </div>
             ))}
@@ -202,7 +213,7 @@ export default async function StudentDashboard() {
         {[
           { yr:1, label:'Foundation', sub:'AI · CS50x · First Projects', color:T.indigo },
           { yr:2, label:'Depth',      sub:'ML · Deep Learning · Live Apps', color:'#0F7173' },
-          { yr:3, label:'Frontier',   sub:'Agents · MCP · AI Club',       color:T.amber },
+          { yr:3, label:'Frontier',   sub:'Agents · MCP · AI Club', color:T.amber },
           { yr:4, label:'Legacy',     sub:'Ethics · Research · Portfolio', color:T.emerald },
         ].map(yr => {
           const yearActive = (allPhases ?? []).filter(p => p.year === yr.yr).some(p => p.is_active)
@@ -213,7 +224,9 @@ export default async function StudentDashboard() {
                 <div style={{ fontSize:13, fontWeight: yearActive ? 600 : 400, color: yearActive ? T.white : T.slate }}>
                   Year {yr.yr} — {yr.label}
                 </div>
-                <div style={{ fontSize:11, color: yearActive ? yr.color : T.slate }}>{yearActive ? '● ACTIVE NOW' : yr.sub}</div>
+                <div style={{ fontSize:11, color: yearActive ? yr.color : T.slate }}>
+                  {yearActive ? '● ACTIVE NOW' : yr.sub}
+                </div>
               </div>
             </div>
           )

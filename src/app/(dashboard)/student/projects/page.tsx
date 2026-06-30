@@ -2,6 +2,9 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import ProjectsClient from './ProjectsClient'
 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 export default async function ProjectsPage() {
   const sb = createClient()
   const { data: { user } } = await sb.auth.getUser()

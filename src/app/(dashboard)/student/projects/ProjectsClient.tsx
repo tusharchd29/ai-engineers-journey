@@ -19,6 +19,9 @@ const DIFF: Record<string,{label:string;color:string;bg:string}> = {
   intermediate: { label:'Intermediate', color:T.peach, bg:'#FFF3EA' },
   advanced:     { label:'Advanced',     color:T.red,   bg:'#FFF0F0' },
 }
+const DIFF_STARS: Record<string,string> = {
+  beginner: '⭐', intermediate: '⭐⭐', advanced: '⭐⭐⭐',
+}
 
 interface Props { userId:string; initialProjects:any[]; initialSubs:Record<string,any> }
 
@@ -130,6 +133,10 @@ export default function ProjectsClient({ userId, initialProjects, initialSubs }:
   if (view==='detail' && active) {
     const sub = subs[active.id]; const status = sub?.status??'not_started'
     const st = STATUS[status]; const diff = DIFF[active.difficulty]??DIFF.beginner
+    const stars = DIFF_STARS[active.difficulty] ?? '⭐⭐'
+    const hasBrief = active.one_line_description || active.mission || active.problem_statement
+      || (active.success_criteria && active.success_criteria.length > 0) || active.who_for || active.extra_note_body
+
     return (
       <div style={{ fontFamily:'Inter,sans-serif', background:T.bg, minHeight:'100vh' }}>
         <ToastEl />
@@ -147,6 +154,87 @@ export default function ProjectsClient({ userId, initialProjects, initialSubs }:
           <div style={{ fontSize:14,color:T.muted }}>{active.tagline}</div>
         </div>
         <div style={{ padding:'0 16px 32px' }}>
+
+          {/* ── PROJECT BRIEF CARD ── */}
+          {hasBrief && (
+            <div style={{ background:T.surface, border:`1.5px solid ${T.purple}30`, borderRadius:16, padding:18, marginBottom:16, boxShadow:'0 2px 12px rgba(124,111,224,0.08)' }}>
+              <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:14 }}>
+                <span style={{ fontSize:18 }}>📋</span>
+                <div style={{ fontSize:13, fontWeight:700, color:T.purple, textTransform:'uppercase', letterSpacing:'0.06em' }}>Project Brief &amp; Mission</div>
+              </div>
+
+              <div style={{ display:'flex', flexWrap:'wrap', gap:16, marginBottom:16 }}>
+                <div>
+                  <div style={{ fontSize:10, color:T.muted, textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:3 }}>Phase / Year</div>
+                  <div style={{ fontSize:13, color:T.text, fontWeight:600 }}>{active.phase_id ? `Phase · Year` : '—'}</div>
+                </div>
+                {active.rank_label && (
+                  <div>
+                    <div style={{ fontSize:10, color:T.muted, textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:3 }}>Rank</div>
+                    <div style={{ fontSize:13, color:T.purple, fontWeight:700 }}>{active.rank_label}</div>
+                  </div>
+                )}
+                {active.build_weeks && (
+                  <div>
+                    <div style={{ fontSize:10, color:T.muted, textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:3 }}>Build Time</div>
+                    <div style={{ fontSize:13, color:T.text, fontWeight:600 }}>{active.build_weeks}</div>
+                  </div>
+                )}
+                <div>
+                  <div style={{ fontSize:10, color:T.muted, textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:3 }}>Difficulty</div>
+                  <div style={{ fontSize:13, color:T.peach, fontWeight:700 }}>{stars} <span style={{ color:T.muted, fontWeight:400 }}>({diff.label})</span></div>
+                </div>
+              </div>
+
+              {active.one_line_description && (
+                <div style={{ marginBottom:14 }}>
+                  <div style={{ fontSize:11, color:T.purple, fontWeight:700, textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:6 }}>One-line description</div>
+                  <div style={{ fontSize:14, color:T.text, lineHeight:1.7, fontStyle:'italic' }}>{active.one_line_description}</div>
+                </div>
+              )}
+
+              {active.mission && (
+                <div style={{ marginBottom:14 }}>
+                  <div style={{ fontSize:11, color:T.purple, fontWeight:700, textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:6 }}>Mission</div>
+                  <div style={{ fontSize:14, color:T.text, lineHeight:1.7 }}>{active.mission}</div>
+                </div>
+              )}
+
+              {active.problem_statement && (
+                <div style={{ marginBottom:14, background:T.surface2, borderRadius:12, padding:14 }}>
+                  <div style={{ fontSize:11, color:T.purple, fontWeight:700, textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:6 }}>Problem Statement</div>
+                  <div style={{ fontSize:13, color:T.muted, lineHeight:1.7 }}>{active.problem_statement}</div>
+                </div>
+              )}
+
+              {active.success_criteria && active.success_criteria.length > 0 && (
+                <div style={{ marginBottom:14 }}>
+                  <div style={{ fontSize:11, color:T.purple, fontWeight:700, textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:8 }}>Success Criteria</div>
+                  {active.success_criteria.map((c:string, i:number) => (
+                    <div key={i} style={{ display:'flex', alignItems:'flex-start', gap:8, marginBottom:6 }}>
+                      <span style={{ color:T.mint, fontSize:13, marginTop:1 }}>✓</span>
+                      <span style={{ fontSize:13, color:T.text, lineHeight:1.6 }}>{c}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {active.who_for && (
+                <div style={{ marginBottom:active.extra_note_body ? 14 : 0 }}>
+                  <div style={{ fontSize:11, color:T.purple, fontWeight:700, textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:6 }}>Who This Is For</div>
+                  <div style={{ fontSize:13, color:T.muted, lineHeight:1.7 }}>{active.who_for}</div>
+                </div>
+              )}
+
+              {active.extra_note_body && (
+                <div style={{ background:'#FFF3EA', border:`1px solid ${T.peach}30`, borderRadius:12, padding:14 }}>
+                  <div style={{ fontSize:11, color:T.peach, fontWeight:700, textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:6 }}>{active.extra_note_title ?? 'Note'}</div>
+                  <div style={{ fontSize:13, color:T.text, lineHeight:1.7 }}>{active.extra_note_body}</div>
+                </div>
+              )}
+            </div>
+          )}
+
           <div style={{ background:T.surface,border:`1px solid ${T.border}`,borderRadius:14,padding:16,marginBottom:12 }}>
             <div style={{ fontSize:11,color:T.purple,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:10 }}>🛠️ What You Build</div>
             <div style={{ fontSize:14,color:T.text,lineHeight:1.8 }}>{active.what_you_build}</div>
